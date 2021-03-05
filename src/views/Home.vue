@@ -4,15 +4,16 @@
       <Library :importedLibrary="library" />
     </div>
     <div v-else>
-      <h1 id="header">Top Headlines in Nigeria Today</h1>
+      <h1 id="header">Top Headlines in Great Britain Today</h1>
       <nav class="nav-bar">
         <ul class="nav-bar-item">
           <li
             v-for="(category, index) in categories"
             :key="index"
-            @click="fetchNewsByCategory(category)"
           >
-            {{ category }}
+            <router-link :to="`/?category=${category != 'all' ? category : ''}`">
+              {{ category }}
+            </router-link>
           </li>
           <button id="lib-button" @click="showLibrary = true">View Library</button>
         </ul>
@@ -20,7 +21,7 @@
       <br />
       <div class="home">
         <h2 id="loader" v-if="loading">Loading...</h2>
-        <div class="headlines" v-else>
+        <div class="headlines" v-else-if="allHeadlines.length">
           <div
             class="single__headline"
             v-for="(headline, hindex) in allHeadlines"
@@ -31,11 +32,15 @@
             </div>
             <h3>{{ headline.title }}</h3>
             <p v-html="headline.content"></p>
+            <h6><a :href="headline.url" target="_blank">Read full article</a></h6>
             <div class="bottom__headline">
               <small>Source: {{ headline.source.name }}</small>
               <button id="bookmark" @click="saveToLibrary(headline)">Save for Later</button>
             </div>
           </div>
+        </div>
+        <div class="headlines" v-else>
+          <h4>No news in this category</h4>
         </div>
       </div>
     </div>
@@ -44,7 +49,6 @@
 
 <script>
 // @ is an alias to /src
-import axios from "axios";
 import Library from '@/components/Library.vue'
 
 export default {
@@ -53,8 +57,6 @@ export default {
     return {
       loading: true,
       allHeadlines: [],
-      apiKey: "0c886cc8d75b46b4822d6418525117ab",
-      apiURL: "https://newsapi.org/v2/top-headlines?",
       categories: [
         "all",
         "business",
@@ -72,27 +74,25 @@ export default {
   components: {
     Library
   },
+  watch: {
+    '$route': {
+      deep: true,
+      handler(value) {
+        const { category } = value.query;
+        this.fetchNewsByCategory(category);
+      }
+    }
+  },
   mounted() {
-    // the axios-get method
-    // axios
-    //   .get('https://blablabla)
-    //   .then((response) => {
-    //     console.log(response)
-    //   })
-    //   .catch((error) => {
-    //     console.log(error)
-    //   })
-    //   .finally(() => {})
-
-    const { apiURL, apiKey } = this;
-    axios
-      .get(`${apiURL}country=gb&apiKey=${apiKey}`)
+    const { category } = this.$route.query;
+    this.$axios
+      .get(`/top-headlines?country=gb&category=${category != 'all' ? category : ''}`)
       .then(({ data }) => {
         const { articles } = data;
         this.allHeadlines = articles;
       })
       .catch((error) => {
-        console.log(error);
+        console.log(error.response);
       })
       .finally(() => {
         this.loading = false;
@@ -109,20 +109,19 @@ export default {
   },
   methods: {
     fetchNewsByCategory(cat) {
-      const { apiURL, apiKey } = this;
       this.loading = true;
-      axios
+      this.$axios
         .get(
-          `${apiURL}country=gb&category=${
+          `/top-headlines?country=gb&category=${
             cat !== "all" ? cat : ""
-          }&apiKey=${apiKey}`
+          }`
         )
         .then(({ data }) => {
           const { articles } = data;
           this.allHeadlines = articles;
         })
         .catch((error) => {
-          console.log(error);
+          console.log(error.response);
         })
         .finally(() => {
           this.loading = false;
@@ -132,7 +131,7 @@ export default {
       this.library.push(headline)
       const parsed = JSON.stringify(this.library)
       localStorage.setItem('libraryStorage', parsed)
-    }
+    },
   },
 };
 </script>
@@ -183,6 +182,10 @@ img {
   object-fit: cover;
   overflow: hidden;
 }
+/* img[src=""],
+img:not([src]) {
+  visibility: hidden;
+} */ /*was trying to remove the broken image icon*/
 #bookmark {
   border: none;
   border-radius: 5px;
